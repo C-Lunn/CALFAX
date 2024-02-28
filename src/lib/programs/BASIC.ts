@@ -8,11 +8,14 @@ export default class BASIC extends Program {
     _input_buffer: string = "";
     _input_buf_history: string[] = [];
     _input_buf_history_idx: number = 0;
-    _worker: Worker = new BASICRunnerWorker();
+    _worker!: Worker;
+    _accepting_key_input: boolean = false;
+    _awaiting_responses: {[id: number]: (msg: MessageEvent) => void} = {};
+    _last_msg_id: number = 0;
     _res?: (val?: unknown) => void;
     _resolve_quit: (val?: unknown) => void;
+    _program: string[] = [];
     async run(keyboard_event_target: OSEventTarget, terminal: Terminal) {
-        let _resolve_quit: any = () => { };
         const should_quit = new Promise((resolve) => {
             this._resolve_quit = resolve;
         });
@@ -21,49 +24,57 @@ export default class BASIC extends Program {
         this._ket = keyboard_event_target;
         this._setup_cmd_listeners();
         this._terminal.write_line("CALBASIC 0.0.1");
-        this._terminal.write_string_at_cursor(">");
+        this._terminal.write_line("CTRL + C to quit");
+        this._terminal.write_line("ESC for interrupt");
         this._terminal.move_by(1, 0);
 
-        this._worker.onmessage = (e) => {
-            if (e.data.type === "res") {
-                this._res !== undefined ? this._res() : (() => {})();
+        this._setup_worker();
+
+        setTimeout(async() => {
+            await this._response_to({type: "input", data: "10 PRINT \"HELLO\""});
+            this._program.push("10 PRINT \"HELLO\"");
+            await this._response_to({type: "input", data: "20 GOTO 10"});
+            this._program.push("20 GOTO 10");
+        }, 500);
+
+        await should_quit;
+        terminal.clear();
+    }
+
+    private async _setup_worker() {
+        this._worker = new BASICRunnerWorker();
+        this._worker.onmessage = async(e) => {
+            if (e.data.type === "ready") {
+                for (const line of this._program) {
+                    await this._response_to({type: "input", data: line});
+                }
+                this._accepting_key_input = true;
+                this._terminal.write_line("READY.");
+                this._terminal.write_string_at_cursor(">");
+                this._terminal.move_by(1, 0);
             }
             if (e.data.type === "print") {
                 this._terminal.write_line(e.data.data);
             }
+            if ("id" in e.data) {
+                this._awaiting_responses[e.data.id](e);
+            }
         }
-
-        setTimeout(() => {
-            this._worker.postMessage({type: "input", data: "10 PRINT \"HELLO\""});
-            this._worker.postMessage({type: "input", data: "20 GOTO 10"});
-            this._worker.postMessage({type: "list"});
-        }, 1000);
-
-        await should_quit;
-        terminal.clear();
     }
 
 
     private _setup_cmd_listeners() {
         this._ket.addEventListener('keydown', async(ev) => {
             if (ev.key === "Escape") {
+                this._accepting_key_input = false;
                 this._worker.terminate();
-                this._res !== undefined ? this._res() : (() => {})();
-                this._worker = new BASICRunnerWorker();
-                this._worker.onmessage = (e) => {
-                    if (e.data.type === "res") {
-                        this._res !== undefined ? this._res() : (() => {})();
-                    }
-                    if (e.data.type === "print") {
-                        this._terminal.write_line(e.data.data);
-                    }
-                }
-                this._terminal.clear();
+                await this._setup_worker();
                 this._terminal.write_line("TERMINATED.")
-
             } else if (ev.key === "c" && ev.ctrlKey) {
                 this._worker.terminate();
                 this._resolve_quit();
+            } else if (!this._accepting_key_input) {
+                return;
             } else if (ev.key === "Enter") {
                 await this._handle_enter();
             } else if (ev.key === "Backspace") {
@@ -78,28 +89,28 @@ export default class BASIC extends Program {
 
     private async _handle_enter() {
         this._terminal.next_line();
+        this._accepting_key_input = false;
         const input = this._input_buffer;
         if (input !== "") {
             this._input_buf_history.unshift(input);
             this._input_buf_history_idx = 0;
         }
         this._input_buffer = "";
-        const should_res = new Promise((resolve) => {
-            this._res = resolve;
-        });
         if (input === "") {
             this._terminal.write_string_at_cursor(">");
             this._terminal.move_by(1, 0);
             return;
         } else if (input.toUpperCase() === "LIST") {
-            this._worker.postMessage({ type: "list" });
-            
+            await this._response_to({ type: "list" });
         } else if (input.toUpperCase() === "RUN") {
-            this._worker.postMessage({ type: "run" });
+            await this._response_to({ type: "run" });
         } else {
-            this._worker.postMessage({ type: "input", data: input });
+            const msg = await this._response_to({ type: "input", data: input });
+            if (msg.data.type === "line_accept") {
+                this._program.push(input);
+            }
         }
-        await should_res;
+        this._accepting_key_input = true;
         this._terminal.write_string_at_cursor(">");
         this._terminal.move_by(1, 0);
     }
@@ -156,4 +167,24 @@ export default class BASIC extends Program {
             this._terminal.move_by(1, 0);
         }
     }
+
+    private async _response_to(msg: any) {
+        const id = this._last_msg_id++;
+        const [p, res] = get_promise<MessageEvent>();
+        this._awaiting_responses[id] = res;
+        msg.id = id;
+        this._worker.postMessage(msg);
+        const res_msg = await p;
+        delete this._awaiting_responses[id];
+        return res_msg;
+    }
+}
+
+function get_promise<T>(): [Promise<T>, (val: T) => void, (reason?: any) => void] {
+    let res: any, rej: any;
+    const p = new Promise<T>((resolve, reject) => {
+        res = resolve;
+        rej = reject;
+    });
+    return [p, res, rej];
 }
