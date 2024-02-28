@@ -1,0 +1,161 @@
+@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@200;400;600&family=Michroma&display=swap');
+
+.tv-root {
+  display: grid;
+  align-items: center;
+  justify-items: center;
+  width: 90%;
+  height: 100%;
+}
+
+.tv {
+  display: grid;
+  grid-template-areas: a;
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+  background-color: black;
+  border-radius: 14px;
+}
+
+.tv-img {
+  width: 100%;
+  min-width: 500px;
+  grid-area: a;
+  z-index: 1;
+}
+
+.canvas-holder {
+  grid-area: a;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-columns: 70% 30%;
+  z-index: 0;
+}
+
+.terminal {
+  position: relative;
+  display: flex;
+  width: 100%;
+}
+
+#term-canvas {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  height: 80%;
+  width: 90%;
+  padding-top: 9%;
+  padding-left: 11%;
+}
+
+/**** MOBILE ****/
+
+.tv-root-mobile {
+  display: grid;
+  align-items: center;
+  justify-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+.tv-mobile {
+  display: grid;
+  grid-template-areas: 
+  "l"
+  "m"
+  "m"
+  "m"
+  "n"
+  "n"
+  "n"
+  "n"
+  "n"
+  "n"
+  "n";
+  background-image: url("plastick.png");
+  border-radius: 14px;
+  width: 100%;
+  height: 100%;
+  justify-content: center;
+}
+
+.tv-mobile-top {
+  grid-area: "l";
+  height: 10px
+}
+
+.tv-img-mobile {
+  width: 100%;
+  grid-area: m;
+  z-index: 0;
+}
+
+.canvas-holder-mobile {
+  grid-area: m;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-rows: 30% 70%;
+  z-index: 1;
+}
+
+.terminal-mobile {
+  position: relative;
+  display: flex;
+  width: 100%;
+}
+
+#term-canvas-mobile {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  height: 200%;
+  width: 90%;
+  padding-top: 22%;
+  padding-left: 5%;
+}
+
+.tv-mobile-bottom {
+  grid-area: n;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+  justify-items: center;
+  width: 100%;
+  height: 90%;
+  z-index: 5;
+}
+
+.tv-mobile-buttons {
+  display: grid;
+  grid-template-areas: 
+  "ba bb bc"
+  "bd be bf"
+  "bg bh bi"
+  "bj bk bl";
+  width: 90%;
+  height: 90%;
+  grid-gap: 10px;
+  z-index: 2;
+}
+
+.tv-mobile-button {
+  background-color: #555555;
+  height: 60px;
+  display: grid;
+  justify-items: center;
+  color:beige;
+  font-size: 30px;
+  font-family: 'Michroma', sans-serif;
+  user-select: none;
+}
+
+.tv-mobile-button:active {
+  background-color: #111111;
+  height: 60px;
+}
+
+.tv-mobile-button-0 {
+  grid-area: bk;
+}
